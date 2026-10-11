@@ -1,9 +1,11 @@
 """Readability scoring: Flesch Reading Ease, Flesch-Kincaid Grade, sentence difficulty, and audience targets."""
 
+from __future__ import annotations
+
 import re
 import statistics
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 from app.analysis.tokenize import TokenizeResult, SentenceSpan, extract_words
 from app.analysis.syllables import count_syllables, is_long_word
