@@ -53,3 +53,5 @@
 - **Vanilla Frontend without Frameworks**: Used Jinja2 server templates, CSS custom properties, and vanilla JS to avoid bloated frontend build steps and provide instantaneous interactive responsiveness.
 - **Server-Side AI Isolation**: Kept all Anthropic API integration strictly server-side with strict timeouts, Pydantic schema validation, and retry logic to protect user credentials and ensure graceful failure modes.
 - **Multi-Provider AI with Zero-Key Local Engine**: Created `app/ai/local_engine.py` to ensure all three AI features (rewriting, editor notes, and developmental chapter read) work completely out of the box with zero credentials, 100% offline and free. Added plug-and-play support for Google Gemini (generous free tier via `GEMINI_API_KEY`) and Ollama local models (`OLLAMA_HOST`) alongside Anthropic Claude.
+- **Vercel uv Application Packaging**: Configured `[tool.uv] package = false` and explicit `[tool.setuptools.packages.find]` in `pyproject.toml` so Vercel's Python uv builder installs application dependencies without triggering setuptools flat-layout wheel compilation errors across `api` and `app`.
+
