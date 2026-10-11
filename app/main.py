@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
-from fastapi import FastAPI, Request, HTTPException, status
+from fastapi import FastAPI, Request, HTTPException, status, Response
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -66,6 +66,24 @@ templates_dir = BASE_DIR / "templates"
 templates = Jinja2Templates(directory=str(templates_dir))
 
 
+@app.get("/static/css/inkgauge.css")
+async def css_endpoint():
+    """Direct static CSS route fallback for serverless environments."""
+    css_file = BASE_DIR / "static" / "css" / "inkgauge.css"
+    if css_file.exists():
+        return Response(content=css_file.read_text(encoding="utf-8"), media_type="text/css")
+    return Response(status_code=404)
+
+
+@app.get("/static/js/app.js")
+async def js_endpoint():
+    """Direct static JS route fallback for serverless environments."""
+    js_file = BASE_DIR / "static" / "js" / "app.js"
+    if js_file.exists():
+        return Response(content=js_file.read_text(encoding="utf-8"), media_type="application/javascript")
+    return Response(status_code=404)
+
+
 def get_client_ip(request: Request) -> str:
     """Extract client IP from headers or connection."""
     forwarded = request.headers.get("x-forwarded-for")
@@ -99,15 +117,25 @@ class ChapterReadRequest(BaseModel):
 async def index_view(request: Request):
     """Render the main Inkgauge single-page proof tool."""
     from app.ai.client import get_active_provider
-    return templates.TemplateResponse(
-        request=request,
-        name="index.html",
-        context={
-            "audience_presets": AUDIENCE_PRESETS,
-            "ai_enabled": True,
-            "ai_provider": get_active_provider(),
-        },
-    )
+    ctx = {
+        "request": request,
+        "audience_presets": AUDIENCE_PRESETS,
+        "ai_enabled": True,
+        "ai_provider": get_active_provider(),
+    }
+    try:
+        return templates.TemplateResponse(
+            request=request,
+            name="index.html",
+            context=ctx,
+        )
+    except Exception:
+        tpl_path = BASE_DIR / "templates" / "index.html"
+        if tpl_path.exists():
+            from jinja2 import Template
+            raw_html = tpl_path.read_text(encoding="utf-8")
+            return HTMLResponse(Template(raw_html).render(ctx))
+        raise
 
 
 @app.get("/api/health")
