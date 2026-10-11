@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inkgauge — Proof sheet readability and hardest sentence diagnostic</title>
+  <meta name="description" content="A copyeditor's proof sheet diagnostic for authors. Paste a chapter to see readability metrics and the five hardest sentences flagged in place.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/inkgauge.css">
+</head>
+<body data-theme="light">
+  <!-- Application Shell -->
+  <header class="app-header" role="banner">
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-name">Inkgauge</span>
+        <span class="brand-tagline">a copyeditor's proof sheet</span>
+      </div>
+      <div class="header-controls">
+        <button id="theme-toggle" class="btn-ghost" type="button" aria-label="Toggle dark and light theme">
+          <span class="theme-label">Theme</span>
+        </button>
+        <button id="about-btn" class="btn-ghost" type="button" aria-expanded="false" aria-controls="about-panel">
+          About
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- About Drawer / Modal -->
+  <section id="about-panel" class="about-panel hidden" aria-hidden="true" role="region" aria-label="About Inkgauge">
+    <div class="about-content">
+      <div class="about-header">
+        <h2>About Inkgauge</h2>
+        <button id="close-about-btn" class="btn-ghost" type="button" aria-label="Close about dialog">Close</button>
+      </div>
+      <p>Inkgauge is a working proof sheet for fiction and nonfiction writers. It calculates readability in pure Python and highlights the five sentences in your chapter that place the heaviest cognitive demand on your reader.</p>
+      <p>The calculations combine Flesch Reading Ease, Flesch-Kincaid Grade Level, clause complexity, vocabulary polysyllables, and active voice phrasing.</p>
+      <p class="privacy-note"><strong>Privacy:</strong> Your text is analyzed in memory and not saved. AI features send only the sentence you choose (or the chapter, for Chapter read) to Claude.</p>
+    </div>
+  </section>
+
+  <!-- Top Difficulty Strip -->
+  <section class="strip-container" aria-label="Chapter difficulty strip" id="difficulty-strip-section">
+    <div class="strip-header">
+      <span class="strip-label">Chapter sentence progression</span>
+      <span class="strip-hint" id="strip-hint">Taller and darker bars indicate higher sentence load. Click to jump.</span>
+    </div>
+    <div id="difficulty-strip" class="difficulty-strip" role="listbox" aria-label="Sentence navigation timeline">
+      <!-- Bars dynamically rendered -->
+    </div>
+  </section>
+
+  <!-- Main Working Workspace -->
+  <main class="workspace-container" id="main-content">
+    
+    <!-- Zone 1: Left Rail (Score summary & options) -->
+    <aside class="left-rail" id="score-rail" aria-label="Readability summary">
+      <div class="rail-section">
+        <h2 class="rail-title">Readability</h2>
+        
+        <div class="metric-block" id="metric-reading-ease">
+          <div class="metric-value-row">
+            <span class="metric-label">Flesch reading ease</span>
+            <span class="metric-num" id="stat-reading-ease">—</span>
+          </div>
+          <div class="metric-band" id="band-reading-ease">Paste a chapter to begin</div>
+        </div>
+
+        <div class="metric-block" id="metric-grade-level">
+          <div class="metric-value-row">
+            <span class="metric-label">Flesch-Kincaid grade</span>
+            <span class="metric-num" id="stat-grade-level">—</span>
+          </div>
+          <div class="metric-band" id="band-grade-level">—</div>
+        </div>
+
+        <div class="metric-block">
+          <div class="metric-value-row">
+            <span class="metric-label">Words per sentence</span>
+            <span class="metric-num" id="stat-wps">—</span>
+          </div>
+          <div class="metric-sub" id="stat-wps-sub">Median: —</div>
+        </div>
+
+        <div class="metric-block">
+          <div class="metric-value-row">
+            <span class="metric-label">Long words (3+ syllables)</span>
+            <span class="metric-num" id="stat-long-words">—</span>
+          </div>
+        </div>
+
+        <div class="metric-block">
+          <div class="metric-value-row">
+            <span class="metric-label">Word count</span>
+            <span class="metric-num" id="stat-word-count">—</span>
+          </div>
+          <div class="metric-sub" id="stat-reading-time">Reading time: —</div>
+        </div>
+      </div>
+
+      <!-- Audience Target Selector -->
+      <div class="rail-section">
+        <label for="audience-select" class="rail-label">Audience target</label>
+        <select id="audience-select" class="select-field">
+          {% for key, preset in audience_presets.items() %}
+            <option value="{{ key }}" {% if key == 'commercial_fiction' %}selected{% endif %}>
+              {{ preset.label }} ({{ preset.target_grade_min|int }}–{{ preset.target_grade_max|int }})
+            </option>
+          {% endfor %}
+        </select>
+        <div id="audience-verdict" class="audience-verdict" aria-live="polite">
+          <!-- Populated after analysis -->
+        </div>
+      </div>
+
+      <!-- Style Flags & Heat shading toggles -->
+      <div class="rail-section">
+        <h3 class="rail-subtitle">Style observations</h3>
+        <ul class="style-list" id="style-list">
+          <li><span class="style-metric-name">Passive voice</span> <span id="stat-passive" class="style-metric-val">—</span></li>
+          <li><span class="style-metric-name">-ly adverbs</span> <span id="stat-adverbs" class="style-metric-val">—</span></li>
+          <li><span class="style-metric-name">Dialogue grade</span> <span id="stat-dialogue-grade" class="style-metric-val">—</span></li>
+          <li><span class="style-metric-name">Narration grade</span> <span id="stat-narration-grade" class="style-metric-val">—</span></li>
+        </ul>
+
+        <div class="toggle-control">
+          <label class="switch-label" for="heat-shading-toggle">
+            <input type="checkbox" id="heat-shading-toggle">
+            <span class="switch-text">Heat-shade all sentences</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="rail-section rail-actions">
+        <button id="copy-report-btn" class="btn-secondary" type="button" disabled>
+          Copy report
+        </button>
+        <button id="chapter-read-btn" class="btn-secondary" type="button" disabled>
+          Chapter read (AI)
+        </button>
+      </div>
+
+      <div class="privacy-tag">
+        In-memory processing. Text is never stored.
+      </div>
+    </aside>
+
+    <!-- Zone 2: Manuscript Center Column -->
+    <section class="center-stage" aria-label="Manuscript workspace">
+      
+      <!-- Input Panel (Initial Working View) -->
+      <div id="input-panel" class="input-panel">
+        <div class="input-toolbar">
+          <span class="input-instruction">Paste a chapter below (up to 150,000 characters).</span>
+          <div class="input-actions">
+            <label for="sample-select" class="sr-only">Choose a sample chapter</label>
+            <select id="sample-select" class="sample-select">
+              <option value="" selected disabled>Load a sample chapter</option>
+              <option value="thriller">Thriller scene with dialogue</option>
+              <option value="literary">Literary fiction passage</option>
+              <option value="business">Dense business article</option>
+              <option value="children">Children's early story</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="textarea-wrapper">
+          <textarea id="chapter-input" class="manuscript-input" rows="18" placeholder="Paste your chapter here to review readability and highlight the five hardest sentences..." aria-label="Manuscript input area" spellcheck="false"></textarea>
+          <div class="char-counter" id="char-counter">0 / 150,000</div>
+        </div>
+
+        <div class="action-bar">
+          <button id="analyze-btn" class="btn-primary" type="button">
+            Analyze chapter
+          </button>
+          <div id="status-message" class="status-message" role="status" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <!-- Manuscript Proof Sheet (Results View) -->
+      <div id="proof-panel" class="proof-panel hidden" aria-hidden="true">
+        <div class="proof-toolbar">
+          <button id="edit-text-btn" class="btn-ghost" type="button">
+            Edit text
+          </button>
+          <span class="proof-meta" id="proof-meta">Showing 5 hardest sentences</span>
+        </div>
+
+        <!-- Language notice if non-English detected -->
+        <div id="language-notice" class="language-notice hidden" role="note"></div>
+
+        <!-- Rendered Manuscript surface -->
+        <div id="manuscript-surface" class="manuscript-surface" role="document">
+          <!-- Paragraphs and highlight elements rendered here -->
+        </div>
+
+        <!-- AI Chapter Read Results Modal/Container -->
+        <div id="chapter-read-results" class="chapter-read-results hidden" role="region" aria-label="AI Chapter Read Assessment">
+          <div class="chapter-read-card">
+            <div class="card-head">
+              <h3>Developmental Editor's Chapter Read</h3>
+              <button id="close-chapter-read-btn" class="btn-ghost" type="button">Close</button>
+            </div>
+            <div id="chapter-read-content"></div>
+            <div class="ai-disclaimer">AI-generated editor note. Check against your story voice.</div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Zone 3: Right Gutter (Margin Notes) -->
+    <aside class="right-gutter" id="margin-gutter" aria-label="Editorial margin notes">
+      <div class="gutter-header">
+        <h2 class="gutter-title">Hardest sentences</h2>
+        <span class="gutter-subtitle">Ranked 1 to 5 by cognitive load</span>
+      </div>
+
+      <!-- Desktop SVG Connector overlay -->
+      <svg id="connector-canvas" class="connector-canvas" aria-hidden="true">
+        <!-- SVG lines drawn dynamically on desktop -->
+      </svg>
+
+      <!-- Margin Notes List -->
+      <div id="margin-notes-list" class="margin-notes-list" role="feed" aria-label="Five hardest sentences notes">
+        <!-- Dynamically placed margin note cards -->
+      </div>
+    </aside>
+
+  </main>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
