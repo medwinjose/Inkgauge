@@ -59,12 +59,11 @@ async def add_security_headers_and_limit(request: Request, call_next):
 
 # Mount Static Files and Templates
 static_dir = BASE_DIR / "static"
-static_dir.mkdir(parents=True, exist_ok=True)
-(static_dir / "css").mkdir(parents=True, exist_ok=True)
-(static_dir / "js").mkdir(parents=True, exist_ok=True)
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+templates_dir = BASE_DIR / "templates"
+templates = Jinja2Templates(directory=str(templates_dir))
 
 
 def get_client_ip(request: Request) -> str:

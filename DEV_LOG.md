@@ -35,6 +35,13 @@
    - *How it was found*: Visual inspection and layout coordinate checks when multiple candidate sentences were in the same paragraph.
    - *Fix*: Implemented a dynamic collision resolution algorithm in `app.js` (`layoutMarginNotes`): if `idealTop < lastBottom + 16px`, the card is pushed down to `lastBottom + 16px`, and smooth SVG cubic bezier curves connect the sentence anchor to the displaced note card.
 
+6. **Vercel Serverless Function 500 Invocation Failure & Read-Only Filesystem**:
+   - *Example*: Deploying to Vercel produced `500 FUNCTION_INVOCATION_FAILED` on `inkgauge.vercel.app`.
+   - *How it was found*: Vercel live deployment returned 500 when accessing the domain.
+   - *Fix*: Two root causes resolved:
+     1. Created `api/index.py` and `vercel.json` routing configuration to provide the official Vercel Serverless Function entrypoint for FastAPI.
+     2. Removed runtime `mkdir(parents=True, exist_ok=True)` in `app/main.py` which crashed during module import on the read-only AWS Lambda / Vercel execution environment.
+
 ## 3. Known limitations
 - **Language Assumptions**: Readability formulas (Flesch Reading Ease and Flesch-Kincaid Grade Level) are specifically calibrated for English language prose structures and vocabulary. Non-English text triggers a gentle notice that scores are approximate.
 - **Unpunctuated Poetry**: Verse without conventional punctuation or line breaks cannot be reliably segmented into sentence boundaries; whole-chapter word averages remain accurate, but clause load metrics are approximate.
