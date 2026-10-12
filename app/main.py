@@ -38,6 +38,18 @@ app.add_middleware(
 )
 
 
+# Path Normalization Middleware for Serverless Entrypoints
+@app.middleware("http")
+async def normalize_serverless_path(request: Request, call_next):
+    raw_path = request.scope.get("path", "")
+    for prefix in ("/api/index.py", "/api/index"):
+        if raw_path.startswith(prefix):
+            remainder = raw_path[len(prefix):]
+            request.scope["path"] = remainder if remainder.startswith("/") else (("/" + remainder) if remainder else "/")
+            break
+    return await call_next(request)
+
+
 # Security Headers & Memory-only Processing Middleware
 @app.middleware("http")
 async def add_security_headers_and_limit(request: Request, call_next):
@@ -114,6 +126,9 @@ class ChapterReadRequest(BaseModel):
 
 
 @app.get("/", response_class=HTMLResponse)
+@app.get("/api/index.py", response_class=HTMLResponse)
+@app.get("/api/index", response_class=HTMLResponse)
+@app.get("/api", response_class=HTMLResponse)
 async def index_view(request: Request):
     """Render the main Inkgauge single-page proof tool."""
     from app.ai.client import get_active_provider
