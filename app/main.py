@@ -164,6 +164,20 @@ async def health_check():
     }
 
 
+@app.get("/api/debug-path")
+async def debug_path(request: Request):
+    """Temporary debug endpoint to inspect ASGI scope on Vercel."""
+    return {
+        "scope_path": request.scope.get("path"),
+        "scope_raw_path": request.scope.get("raw_path", b"").decode("utf-8", errors="replace"),
+        "scope_root_path": request.scope.get("root_path", ""),
+        "url": str(request.url),
+        "headers_x_matched_path": request.headers.get("x-matched-path", ""),
+        "headers_x-forwarded-path": request.headers.get("x-forwarded-path", ""),
+        "headers_x-vercel-forwarded-for": request.headers.get("x-vercel-forwarded-for", ""),
+    }
+
+
 @app.post("/api/analyze")
 async def analyze_endpoint(payload: AnalyzeRequest, request: Request):
     """Core analysis endpoint."""
