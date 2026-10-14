@@ -42,6 +42,14 @@
      1. Created `api/index.py` and `vercel.json` routing configuration to provide the official Vercel Serverless Function entrypoint for FastAPI.
      2. Removed runtime `mkdir(parents=True, exist_ok=True)` in `app/main.py` which crashed during module import on the read-only AWS Lambda / Vercel execution environment.
 
+7. **Vercel Catch-All Rewrite ASGI Scope Path Loss & Raw Unstyled HTML**:
+   - *Example*: Deploying to Vercel caused the site to render as raw unstyled HTML without fonts/styles, `/static/css/inkgauge.css` and `/static/js/app.js` returned `index.html`, and `POST /api/analyze` returned `405 Method Not Allowed`.
+   - *How it was found*: Screenshot and HTTP inspection showed that Vercel's rewrite `/(.*) -> /api/index.py` overwrote the ASGI scope path to `/api/index.py` for all requests without preserving the original URI in any standard header, causing all GET requests to resolve to `index_view` ("/") and all POST requests to 405.
+   - *Fix*:
+     1. Placed static assets in `public/static/` so Vercel's Edge CDN serves them directly with `text/css` and `application/javascript` MIME types before evaluating any rewrites.
+     2. Updated `vercel.json` rewrite destination to `/api/index.py?__path=/$1` to forward the client path into the serverless function.
+     3. Enhanced `normalize_serverless_path` middleware in `app/main.py` to extract `__path`, set `request.scope["path"]`, clean the query string in the ASGI scope, and added `HEAD` method support for monitoring.
+
 ## 3. Known limitations
 - **Language Assumptions**: Readability formulas (Flesch Reading Ease and Flesch-Kincaid Grade Level) are specifically calibrated for English language prose structures and vocabulary. Non-English text triggers a gentle notice that scores are approximate.
 - **Unpunctuated Poetry**: Verse without conventional punctuation or line breaks cannot be reliably segmented into sentence boundaries; whole-chapter word averages remain accurate, but clause load metrics are approximate.

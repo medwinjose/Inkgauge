@@ -41,12 +41,34 @@ app.add_middleware(
 # Path Normalization Middleware for Serverless Entrypoints
 @app.middleware("http")
 async def normalize_serverless_path(request: Request, call_next):
+    # 1. Check if Vercel passed the path via query parameter __path
+    query_path = request.query_params.get("__path")
+    if query_path:
+        norm_path = query_path if query_path.startswith("/") else ("/" + query_path)
+        request.scope["path"] = norm_path
+
+        # Clean __path from query_string in ASGI scope so endpoints don't see it
+        raw_qs = request.scope.get("query_string", b"").decode("latin-1")
+        from urllib.parse import parse_qsl, urlencode
+        clean_params = [(k, v) for k, v in parse_qsl(raw_qs, keep_blank_values=True) if k != "__path"]
+        request.scope["query_string"] = urlencode(clean_params).encode("latin-1")
+        return await call_next(request)
+
+    # 2. Check if a proxy or Vercel passed the original path in headers
+    for h in ("x-forwarded-path", "x-matched-path"):
+        hdr_val = request.headers.get(h)
+        if hdr_val and not hdr_val.startswith("/api/index"):
+            request.scope["path"] = hdr_val if hdr_val.startswith("/") else ("/" + hdr_val)
+            return await call_next(request)
+
+    # 3. Strip any serverless file prefix (/api/index.py or /api/index)
     raw_path = request.scope.get("path", "")
     for prefix in ("/api/index.py", "/api/index"):
         if raw_path.startswith(prefix):
             remainder = raw_path[len(prefix):]
             request.scope["path"] = remainder if remainder.startswith("/") else (("/" + remainder) if remainder else "/")
             break
+
     return await call_next(request)
 
 
@@ -71,6 +93,8 @@ async def add_security_headers_and_limit(request: Request, call_next):
 
 # Mount Static Files and Templates
 static_dir = BASE_DIR / "static"
+if not static_dir.exists():
+    static_dir = BASE_DIR.parent / "public" / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
@@ -81,18 +105,18 @@ templates = Jinja2Templates(directory=str(templates_dir))
 @app.get("/static/css/inkgauge.css")
 async def css_endpoint():
     """Direct static CSS route fallback for serverless environments."""
-    css_file = BASE_DIR / "static" / "css" / "inkgauge.css"
-    if css_file.exists():
-        return Response(content=css_file.read_text(encoding="utf-8"), media_type="text/css")
+    for p in (BASE_DIR / "static" / "css" / "inkgauge.css", BASE_DIR.parent / "public" / "static" / "css" / "inkgauge.css"):
+        if p.exists():
+            return Response(content=p.read_text(encoding="utf-8"), media_type="text/css")
     return Response(status_code=404)
 
 
 @app.get("/static/js/app.js")
 async def js_endpoint():
     """Direct static JS route fallback for serverless environments."""
-    js_file = BASE_DIR / "static" / "js" / "app.js"
-    if js_file.exists():
-        return Response(content=js_file.read_text(encoding="utf-8"), media_type="application/javascript")
+    for p in (BASE_DIR / "static" / "js" / "app.js", BASE_DIR.parent / "public" / "static" / "js" / "app.js"):
+        if p.exists():
+            return Response(content=p.read_text(encoding="utf-8"), media_type="application/javascript")
     return Response(status_code=404)
 
 
@@ -125,10 +149,10 @@ class ChapterReadRequest(BaseModel):
     text: str
 
 
-@app.get("/", response_class=HTMLResponse)
-@app.get("/api/index.py", response_class=HTMLResponse)
-@app.get("/api/index", response_class=HTMLResponse)
-@app.get("/api", response_class=HTMLResponse)
+@app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
+@app.api_route("/api/index.py", methods=["GET", "HEAD"], response_class=HTMLResponse)
+@app.api_route("/api/index", methods=["GET", "HEAD"], response_class=HTMLResponse)
+@app.api_route("/api", methods=["GET", "HEAD"], response_class=HTMLResponse)
 async def index_view(request: Request):
     """Render the main Inkgauge single-page proof tool."""
     from app.ai.client import get_active_provider
@@ -153,7 +177,7 @@ async def index_view(request: Request):
         raise
 
 
-@app.get("/api/health")
+@app.api_route("/api/health", methods=["GET", "HEAD"])
 async def health_check():
     """Health status and AI capability check."""
     from app.ai.client import get_active_provider

@@ -180,3 +180,43 @@ def test_ai_gemini_integration_mocked(mock_gemini):
         data = response.json()
         assert data["editor_note"] == "A clear note generated via Google Gemini free tier."
         assert data["provider"] == "gemini"
+
+
+def test_serverless_path_normalization_get():
+    """Verify that requests routed to /api/index.py?__path=/api/health resolve correctly."""
+    response = client.get("/api/index.py?__path=/api/health")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ok"
+    assert data["ai_enabled"] is True
+
+
+def test_serverless_path_normalization_post():
+    """Verify that POST requests routed to /api/index.py?__path=/api/analyze resolve without 405."""
+    response = client.post(
+        "/api/index.py?__path=/api/analyze",
+        json={"text": "Captain Miller stepped into the rain. The dark alley smelled of salt.", "audience": "commercial_fiction"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "hardest_sentences" in data
+    assert "reading_ease" in data
+
+
+def test_static_endpoints():
+    """Verify that static fallback routes return appropriate CSS and JS media types."""
+    css_resp = client.get("/static/css/inkgauge.css")
+    assert css_resp.status_code == 200
+    assert "text/css" in css_resp.headers["content-type"]
+    assert "font-family" in css_resp.text or "color" in css_resp.text
+
+    js_resp = client.get("/static/js/app.js")
+    assert js_resp.status_code == 200
+    assert "javascript" in js_resp.headers["content-type"]
+    assert "addEventListener" in js_resp.text or "function" in js_resp.text
+
+
+def test_head_requests():
+    """Verify that HEAD requests on health and root endpoints succeed."""
+    assert client.head("/api/health").status_code == 200
+    assert client.head("/").status_code == 200
