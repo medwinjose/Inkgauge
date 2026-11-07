@@ -78,21 +78,19 @@ The command that produces the table is in the quick start below.
 
 ## Quick start
 
-Requires Python 3.11 or newer and git.
+Requires Python 3.11 or newer, git and [uv](https://docs.astral.sh/uv/). Dependencies are declared in `pyproject.toml` and pinned in `uv.lock`.
 
 ```bash
 git clone https://github.com/medwinjose/Inkgauge.git
 cd Inkgauge
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt pytest
-pytest -q
+uv sync
+uv run pytest -q
 ```
 
 Run the app, then open http://127.0.0.1:8000:
 
 ```bash
-uvicorn app.main:app --host 127.0.0.1 --port 8000
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
 To use an external provider, copy the example settings and fill in a key; without one, the built-in engine is used:
@@ -104,7 +102,7 @@ cp .env.example .env
 Reproduce the results table:
 
 ```bash
-python - <<'EOF'
+uv run python - <<'EOF'
 from fastapi.testclient import TestClient
 from app.main import app
 
@@ -132,6 +130,7 @@ The formulas are calibrated for English; other languages get a notice and approx
 | `app/main.py` | FastAPI routes, security headers, input limits |
 | `tests` | Pytest suites and the four sample chapters |
 | `api/index.py`, `vercel.json`, `public/static` | Vercel entrypoint, routing and static assets |
+| `pyproject.toml`, `uv.lock` | Dependencies and their locked versions |
 | `Dockerfile` | Container image running the app with Uvicorn |
 | `docs` | Screenshot used in this README |
 
