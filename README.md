@@ -26,7 +26,7 @@ The analysis path is pure Python and needs no keys. The three assist endpoints (
 ## Verification and assurance
 - Tests: 32 passing on 2026-11-07 with Python 3.13.18 (`pytest -q`), covering syllables, tokenisation, scoring and the HTTP API.
 - External providers are tested with mocked Anthropic and Gemini calls; Ollama has no test.
-- No CI workflow and no linter configuration exist.
+- CI runs `pytest -q` on Python 3.11, 3.12 and 3.13 for pushes to main and pull requests ([workflow](.github/workflows/ci.yml)). No linter is configured.
 
 ## Limitations and scope
 - Readability formulas are calibrated for English; other languages get a notice and approximate scores.
