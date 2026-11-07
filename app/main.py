@@ -23,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 app = FastAPI(
     title="Inkgauge",
-    description="Readability and difficulty diagnostic tool for fiction and nonfiction authors.",
+    description="A web app that scores the readability of a pasted English chapter and marks the five sentences that carry the most reading load, each with the measured reasons.",
     docs_url=None,   # Disable swagger in production for clean lightweight footprint
     redoc_url=None,
 )

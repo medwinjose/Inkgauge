@@ -1,7 +1,7 @@
 [project]
 name = "inkgauge"
 version = "1.0.0"
-description = "A copyeditor's proof sheet readability and hardest sentence diagnostic"
+description = "A web app that scores the readability of a pasted English chapter and marks the five sentences that carry the most reading load, each with the measured reasons."
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.110.0",
