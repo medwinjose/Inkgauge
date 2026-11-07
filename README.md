@@ -1,5 +1,6 @@
 # Inkgauge - a web app that scores the readability of a pasted English chapter and marks its five hardest sentences
 
+[![CI](https://github.com/medwinjose/Inkgauge/actions/workflows/ci.yml/badge.svg)](https://github.com/medwinjose/Inkgauge/actions/workflows/ci.yml)
 [Quick start](#quick-start) | [Limitations](#limitations-and-scope)
 
 ## At a glance
