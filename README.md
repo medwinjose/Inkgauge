@@ -1,94 +1,61 @@
-# Inkgauge
+# Inkgauge - a web app that scores the readability of a pasted English chapter and marks its five hardest sentences
 
-> A copyeditor's proof sheet for fiction and nonfiction authors.
+[Quick start](#quick-start) | [Limitations](#limitations-and-scope)
 
-Inkgauge is a free, privacy-first web diagnostic tool designed for authors, editors, and creative writing students. Paste a chapter (up to 150,000 characters) to instantly view readability metrics, style flags, and the **five hardest sentences** highlighted directly in your text with numbered editorial margin notes.
+## At a glance
+- **What:** A FastAPI app that scores up to 150,000 characters of prose with Flesch Reading Ease, Flesch-Kincaid grade and style counts. It highlights the five highest-load sentences with margin notes.
+- **Why it matters:** Authors and editors see which sentences slow a reader down, and why, against a chosen audience target.
+- **Status:** Side project, beta. 32 tests pass on 2026-11-07 at commit `4f5a911`. Not in scope: non-English text and verse. Author: Medwin Jose.
 
----
+![Inkgauge proof sheet after analysing the literary fixture: readability scores on the left, highlighted text in the centre, ranked hardest sentences on the right](docs/screenshot.png)
 
-## AI Features (100% Free & Local by Default)
+## Problem and approach
+Readability scores for a whole chapter do not say where a reader stalls. Inkgauge splits the text into sentences with `pysbd` and counts syllables with CMUdict plus a rule-based fallback. It ranks each sentence of four or more words by a weighted load score: grade, length, long-word share, clause count and passive voice.
 
-**No API keys or logins required.** Inkgauge includes a **built-in Local Offline AI Engine** out of the box, with optional support for **Google Gemini (free tier)**, **Ollama**, or **Anthropic Claude**:
+## Architecture
+```mermaid
+flowchart LR
+  B[Browser: Jinja2 page + vanilla JS] -->|POST /api/analyze| M[app/main.py FastAPI]
+  M --> A[app/analysis: tokenize, syllables, scoring, style]
+  B -->|POST /api/ai/*| F[app/ai/features.py]
+  F --> C[app/ai/client.py: Anthropic, then Gemini, then Ollama]
+  F --> L[app/ai/local_engine.py: rule-based fallback]
+```
+The analysis path is pure Python and needs no keys. The three assist endpoints (rewrite, explain, chapter read) try each configured provider in order and fall back to `local_engine.py`. That engine uses phrase substitution and sentence statistics, not a language model. Rewrite grades are recomputed by the app's own scoring code.
 
-1. **Suggest Rewrites**: Returns three distinct revisions (lighter, balanced, voice-preserving) with new grade levels calculated by our own pure-Python scoring code.
-2. **Why Is This Hard?**: A concise 50-word editor's note grounded in measured sentence statistics (clause load, passive phrasing, polysyllabic density).
-3. **Chapter Read**: A structured developmental overview covering pacing, clarity, and three potential reader stall points.
+## Verification and assurance
+- Tests: 32 passing on 2026-11-07 with Python 3.13.18 (`pytest -q`), covering syllables, tokenisation, scoring and the HTTP API.
+- External providers are tested with mocked Anthropic and Gemini calls; Ollama has no test.
+- No CI workflow and no linter configuration exist.
 
-### Supported AI Providers
-- **Built-in Local Engine (Default)**: Runs 100% locally in pure Python. Instant, zero setup, completely offline, zero API keys.
-- **Google Gemini (Free tier)**: Set `GEMINI_API_KEY` in `.env` to use Google's free Gemini 1.5 Flash models.
-- **Ollama (Free local LLMs)**: Point to a running Ollama instance (`http://localhost:11434`) with models like `llama3.2`, `mistral`, or `gemma2`.
-- **Anthropic Claude**: Set `ANTHROPIC_API_KEY` to use Claude 3.5 Sonnet & Haiku.
+## Limitations and scope
+- Readability formulas are calibrated for English; other languages get a notice and approximate scores.
+- Rate limits (per IP: 30 analyses per minute, 30 assist calls per hour) live in process memory and reset per process.
+- Assist responses are cached in process memory for 1 hour.
+- Text is not written to disk, but when an external provider key is set, sentences are sent to that provider.
 
----
-
-## Features
-
-- **Marked-up Proof Sheet Design**: Your manuscript sits in a calm reading column. The five hardest sentences are highlighted with editorial strokes and linked to numbered margin notes vertically aligned with connector lines.
-- **Difficulty Strip Timeline**: An interactive timeline across the top representing every sentence in the chapter. Taller and darker bars indicate higher cognitive load; click any bar to jump directly to that sentence.
-- **Core Readability Metrics**:
-  - **Flesch Reading Ease** with plain-language audience bands.
-  - **Flesch-Kincaid Grade Level** calculated via pure Python.
-  - Words per sentence (mean and median), word count, percentage of long words (3+ syllables), and estimated reading time (238 wpm).
-- **Target Audience Presets**: Compare your text against Middle Grade, Young Adult, Commercial Fiction, Literary Fiction, Nonfiction/Business, or Academic targets.
-- **Style Flags**: In-depth counts and diagnostics for passive voice, -ly adverbs, repeated sentence openers, and separate dialogue vs. narration reading levels.
-- **Heat Shading**: Optional single-hue ultramarine ramp shading every sentence across the chapter by cognitive load.
-- **Zero Login & Zero Storage**: Analyzed strictly in-memory; user text is never stored, logged, or retained.
-
----
-
-## Tech Stack
-
-- **Backend**: Python 3.11+, FastAPI, Uvicorn, Pydantic v2
-- **Text Analysis**: Pure-Python analysis engine (`analysis/`):
-  - `cmudict` for syllable accuracy + rule-based fallback heuristic
-  - `pysbd` for accurate sentence boundary disambiguation with dialogue tag preservation
-- **Frontend**: Jinja2 templates, vanilla JavaScript, hand-written CSS with dark/light themes (no React, Tailwind, or component libraries)
-- **Local AI & NLP**: `app/ai/local_engine.py` (offline linguistic transform engine)
-- **Multi-Provider Cloud AI**: Optional Google Gemini, Ollama, and Anthropic Claude
-- **Testing**: `pytest`, `httpx`
-
----
-
-## Quickstart
-
-### 1. Local Setup with Python
+## Quick start
+Requires Python 3.11 or newer and git.
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/inkgauge.git
-cd inkgauge
-
-# Create and activate a virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# (Optional) Copy environment variables if you want to use Google Gemini or Claude
-cp .env.example .env
+git clone https://github.com/medwinjose/Inkgauge.git
+cd Inkgauge
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt pytest
+pytest -q
+uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-### 2. Run the Server
+Open http://127.0.0.1:8000. To reproduce one result, run this in a second shell from the repository root; it prints `30.6 65 3` (grade, words, sentences):
 
 ```bash
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+python -c "import httpx; d = httpx.post('http://127.0.0.1:8000/api/analyze', json={'text': open('tests/fixtures/dense_business.txt').read(), 'audience': 'nonfiction_business'}).json(); print(d['grade_level'], d['word_count'], d['sentence_count'])"
 ```
 
-Open [http://localhost:8000](http://localhost:8000) in your browser.
+Optional provider keys and model names go in `.env`; see [.env.example](.env.example).
 
-### 3. Run Tests
+## Author and contact
+Medwin Jose - [github.com/medwinjose](https://github.com/medwinjose)
 
-```bash
-pytest -v
-```
-
----
-
-## Privacy & Security
-
-- **In-Memory Only**: Manuscript text is received and processed in transient memory and discarded after response generation.
-- **No Database**: No database or user account tracking exists in the system.
-- **Offline Capable**: With the built-in local engine, not a single byte of manuscript data ever leaves your computer.
-- **Strict Headers**: Content Security Policy (`CSP`), `X-Content-Type-Options: nosniff`, and `Referrer-Policy` enabled.
+## License
+No license file is included, so all rights are reserved by default.
