@@ -58,4 +58,4 @@ Optional provider keys and model names go in `.env`; see [.env.example](.env.exa
 Medwin Jose - [github.com/medwinjose](https://github.com/medwinjose)
 
 ## License
-No license file is included, so all rights are reserved by default.
+MIT. See [LICENSE](LICENSE).
