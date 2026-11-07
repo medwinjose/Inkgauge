@@ -1,4 +1,6 @@
-# Inkgauge - a web app that scores the readability of a pasted English chapter and marks its five hardest sentences
+# Inkgauge
+
+A web app that scores the readability of a pasted English chapter and marks its five hardest sentences.
 
 [![CI](https://github.com/medwinjose/Inkgauge/actions/workflows/ci.yml/badge.svg)](https://github.com/medwinjose/Inkgauge/actions/workflows/ci.yml)
 [Quick start](#quick-start) | [Limitations](#limitations-and-scope)
@@ -8,7 +10,7 @@
 - **Why it matters:** Authors and editors see which sentences slow a reader down, and why, against a chosen audience target.
 - **Status:** Side project, beta. 32 tests pass on 2026-11-07 at commit `4f5a911`. Not in scope: non-English text and verse. Author: Medwin Jose.
 
-![Inkgauge proof sheet after analysing the literary fixture: readability scores on the left, highlighted text in the centre, ranked hardest sentences on the right](docs/screenshot.png)
+![Inkgauge in dark theme after analysing the thriller sample: readability scores on the left, the chapter in the centre, ranked hardest sentences with rewrite suggestions on the right](docs/screenshot.png)
 
 ## Problem and approach
 Readability scores for a whole chapter do not say where a reader stalls. Inkgauge splits the text into sentences with `pysbd` and counts syllables with CMUdict plus a rule-based fallback. It ranks each sentence of four or more words by a weighted load score: grade, length, long-word share, clause count and passive voice.
